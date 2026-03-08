@@ -1,45 +1,32 @@
-# Multi-stage: build FaunaDB tarball (like mktarball.sh), then runtime image with configurable auth_root_key.
-# Set AUTH_ROOT_KEY at run time to override the root key (default: secret).
-# Usage:
+# Multi-stage: stage a tarball from a locally-built JAR (no compile in Docker), then runtime image.
+# Build the JAR locally first, then copy it into the image:
+#   FAUNADB_RELEASE=true sbt service/assembly
+#   cp service/target/scala-2.13/faunadb.jar faunadb.jar
 #   docker build -t faunadb .
+# Or pass the JAR path: docker build --build-arg JAR_PATH=/path/to/faunadb.jar -t faunadb .
+#
+# Set AUTH_ROOT_KEY at run time to override the root key (default: secret).
 #   docker run -p 8443:8443 -p 8444:8444 -e AUTH_ROOT_KEY=your-secret faunadb
-#   # Optional: persist data
-#   docker run -p 8443:8443 -p 8444:8444 -e AUTH_ROOT_KEY=your-secret -v faunadb-data:/opt/fauna/data faunadb
 
 # ------------------------------------------------------------------------------
-# Stage 1: build JAR and stage tarball (inlined mktarball logic, no mktarball.sh)
+# Stage 1: stage tarball from local JAR + scripts (no sbt/compile)
 # ------------------------------------------------------------------------------
-FROM eclipse-temurin:17-jdk AS builder
+FROM alpine:3.19 AS prep
 
 WORKDIR /app
 
-# Install sbt and git (GitPlugin runs "git rev-parse" during sbt load)
-RUN apt-get update -qq && apt-get install -y --no-install-recommends curl gnupg2 ca-certificates git \
-    && curl -sL "https://github.com/sbt/sbt/releases/download/v1.10.7/sbt-1.10.7.tgz" | tar xz -C /usr/local \
-    && ln -sf /usr/local/sbt/bin/sbt /usr/bin/sbt \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+# JAR: from build context (default faunadb.jar at repo root; target/ is in .dockerignore)
+ARG JAR_PATH=faunadb.jar
+COPY ${JAR_PATH} tarball/lib/faunadb.jar
 
-# Copy build definition and source (needed for service/assembly)
-COPY build.sbt ./
-COPY project/ project/
-COPY service/ service/
-COPY ext/ ext/
+# Bin scripts
+COPY service/src/main/scripts/faunadb service/src/main/scripts/faunadb-admin service/src/main/scripts/faunadb-backup-s3-upload tarball/bin/
 
-# GitPlugin expects a git repo (git rev-parse HEAD); .git is not in context, so init and make one commit
-RUN git init \
-    && git config user.email "docker@faunadb" \
-    && git config user.name "Docker Build" \
-    && git add -A \
-    && git commit -m "docker build" --allow-empty
-
-# Build faunadb.jar (same as mktarball)
-ENV FAUNADB_RELEASE=true
-RUN sbt service/assembly
-
-# Stage tarball layout (bin + lib; config generated at runtime in entrypoint)
-RUN mkdir -p tarball/bin tarball/lib \
-    && cp service/target/scala-2.13/faunadb.jar tarball/lib/ \
-    && cp service/src/main/scripts/faunadb service/src/main/scripts/faunadb-admin service/src/main/scripts/faunadb-backup-s3-upload tarball/bin/
+# jamm.jar (optional agent to silence "Unsafe" heap-size warning); download from Maven Central
+RUN apk add --no-cache curl \
+    && curl -sL -o tarball/lib/jamm.jar \
+       "https://repo1.maven.org/maven2/com/github/jbellis/jamm/0.3.0/jamm-0.3.0.jar" \
+    && apk del curl
 
 # ------------------------------------------------------------------------------
 # Stage 2: runtime image with tarball + entrypoint (run-local / start-local style)
@@ -48,10 +35,9 @@ FROM eclipse-temurin:17-jre
 
 WORKDIR /opt/fauna
 
-# Copy tarball from builder; jamm.jar as -javaagent silences the "Unsafe" heap-size warning
-COPY --from=builder /app/tarball/bin ./bin
-COPY --from=builder /app/tarball/lib ./lib
-COPY --from=builder /app/service/lib/jamm.jar ./lib/
+# Copy tarball from prep stage
+COPY --from=prep /app/tarball/bin ./bin
+COPY --from=prep /app/tarball/lib ./lib
 
 # Entrypoint: create faunadb.yml (OPERATING.md: not included in release tar), init, then start server
 COPY scripts/docker-entrypoint.sh /opt/fauna/docker-entrypoint.sh

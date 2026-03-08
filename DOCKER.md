@@ -1,24 +1,30 @@
 # Docker
 
-This document describes how to build and run FaunaDB using the provided Dockerfile. The image is self-contained: it builds the FaunaDB tarball inside the image (same layout as `mktarball.sh` / `scripts/run-local.sh`) and runs a single-node cluster with configurable `auth_root_key`.
+This document describes how to build and run FaunaDB using the provided Dockerfile. The image does **not** compile inside Docker; you build the JAR locally and the Dockerfile only stages that JAR plus scripts and config (same layout as `mktarball.sh` / `scripts/run-local.sh`), then runs a single-node cluster with configurable `auth_root_key`.
 
 ## Overview
 
-- **Multi-stage build:** Stage 1 compiles the JAR with sbt and stages `bin/` and `lib/`; stage 2 is a slim runtime with Eclipse Temurin 17 JRE and the tarball.
+- **Multi-stage build:** Stage 1 (prep) copies your locally-built JAR and scripts into a tarball layout and fetches `jamm.jar`; stage 2 is a slim runtime with Eclipse Temurin 17 JRE and the tarball.
 - **Entrypoint:** `scripts/docker-entrypoint.sh` generates `faunadb.yml` at startup (so you can set `auth_root_key` via env), runs a one-time `faunadb-admin init -r replica_1`, then starts the server in the foreground.
 - **Ports:** 8443 (API), 8444 (admin). The server binds to `0.0.0.0` inside the container so it is reachable from the host.
 
 ## Building
 
-From the repository root:
+Build the JAR locally, then copy it into the build context (`.dockerignore` excludes `target/`, so the JAR must be outside it). From the repository root:
 
 ```bash
+FAUNADB_RELEASE=true sbt service/assembly
+cp service/target/scala-2.13/faunadb.jar faunadb.jar
 docker build -t faunadb .
 ```
 
-The first build can take a while while sbt resolves dependencies and compiles the project. The build context is trimmed by `.dockerignore` (e.g. `target/`, `.git`, logs) to keep context small.
+To use a JAR at a different path:
 
-**Build from source, not the release tarball:** This image is built from the repo (compile in the image). Script fixes and changes in `service/src/main/scripts/` (e.g. optional `JAVA_OPTS`) are included. The published release tarball (e.g. fauna-YYYY-MM.tar.gz) does not include those fixes until a new release is cut.
+```bash
+docker build --build-arg JAR_PATH=/path/to/faunadb.jar -t faunadb .
+```
+
+Docker build no longer runs sbt or compiles; it only copies your JAR and the scripts from `service/src/main/scripts/`. The build context is trimmed by `.dockerignore` (e.g. `target/`, `.git`, logs).
 
 ## Running
 

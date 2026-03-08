@@ -8,12 +8,9 @@ set -euo pipefail
 export JAVA_HOME=$(/usr/libexec/java_home -v 17)  # macOS
 export PATH=$JAVA_HOME/bin:$PATH
 
-echo "Using Java version:"
-java -version
-
 # build faunadb.jar
 export FAUNADB_RELEASE=true
-sbt service/assembly
+sbt -batch -no-colors service/assembly
 
 # copy resources
 mkdir -p tarball/bin
@@ -21,6 +18,25 @@ mkdir -p tarball/lib
 cp service/target/scala-2.13/faunadb.jar tarball/lib/
 cp service/src/main/scripts/faunadb{,-admin,-backup-s3-upload} tarball/bin/
 
+# default config so extract-and-run works (tarball/ is gitignored so we write it here)
+cat > tarball/faunadb.yml << 'FAUNADB_YAML'
+# Default config for extract-and-run (relative paths; run with cwd = extracted dir)
+storage_data_path: data
+log_path: log
+
+cluster_name: local_cluster
+auth_root_key: secret
+
+network_listen_address: 127.0.0.1
+network_broadcast_address: 127.0.0.1
+network_admin_http_address: 127.0.0.1
+network_coordinator_http_address: 127.0.0.1
+
+# Required: parent dir must exist (watcher watches the directory)
+flags_path: feature-flags.json
+FAUNADB_YAML
+
 # make tarball
+mkdir -p target
 cd tarball
-tar czf ../fauna-$(date +%Y-%m-%d).tar.gz ./*
+tar czf ../target/fauna-$(date +%Y-%m-%d).tar.gz ./*

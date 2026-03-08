@@ -8,15 +8,30 @@ REPO_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 SCRIPTS="$REPO_ROOT/scripts"
 TARBALL_DIR="$REPO_ROOT/tarball"
 
+# =====================================================================
+# ADD THIS BLOCK: Fix for the "jamm will use sun.misc.Unsafe" warning
+# =====================================================================
+if [ -d "$TARBALL_DIR" ]; then
+  # Find the jamm jar file inside the built tarball directory
+  JAMM_JAR=$(find "$TARBALL_DIR" -name "jamm-*.jar" | head -n 1)
+  
+  if [ -n "$JAMM_JAR" ]; then
+    # Inject it globally so any child Java process picks it up
+    export JAVA_TOOL_OPTIONS="-javaagent:$JAMM_JAR ${JAVA_TOOL_OPTIONS:-}"
+  fi
+fi
+# =====================================================================
+
 usage() {
+# ... (the rest of your script remains exactly the same) ...
   cat << 'EOF'
-Usage: ./fauna <command> [subcommand] [options...]
+Usage: ./fauna-tools <command> [subcommand] [options...]
 
 Commands:
 
   scripts
-    run         Run FaunaDB from local tarball (foreground). Build first: ./fauna tarball
-    start       Start FaunaDB in background (stop with: ./fauna scripts stop)
+    run         Run FaunaDB from local tarball (foreground). Build first: ./fauna-tools tarball
+    start       Start FaunaDB in background (stop with: ./fauna-tools scripts stop)
     stop        Stop FaunaDB started by 'scripts start'
     reset       Stop FaunaDB and clean state; use --wipe-data to remove data/log
     setup-env   Install deps for building (macOS/Homebrew: Java 17, sbt)
@@ -31,9 +46,9 @@ Commands:
   init         One-time: init cluster in tarball (cd tarball && ./bin/faunadb-admin init -r replica_1)
 
 Examples:
-  ./fauna tarball && ./fauna init && ./fauna scripts run
-  ./fauna docker build && ./fauna docker run --key my-secret
-  ./fauna scripts reset --wipe-data && ./fauna scripts start
+  ./fauna-tools tarball && ./fauna-tools init && ./fauna-tools scripts run
+  ./fauna-tools docker build && ./fauna-tools docker run --key my-secret
+  ./fauna-tools scripts reset --wipe-data && ./fauna-tools scripts start
 EOF
 }
 
@@ -85,7 +100,7 @@ cmd_tarball() {
 
 cmd_init() {
   if [ ! -f "$TARBALL_DIR/bin/faunadb-admin" ]; then
-    echo "Tarball not found. Run: ./fauna tarball" 1>&2
+    echo "Tarball not found. Run: ./fauna-tools tarball" 1>&2
     exit 1
   fi
   (cd "$TARBALL_DIR" && ./bin/faunadb-admin init -r replica_1)
