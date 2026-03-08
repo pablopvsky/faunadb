@@ -1,0 +1,10 @@
+# Container config: bind to 0.0.0.0 so host can reach API and admin (OPERATING.md).
+auth_root_key: "secret"
+cluster_name: local_cluster
+storage_data_path: /opt/fauna/data
+log_path: /opt/fauna/log
+flags_path: /opt/fauna/flags/feature-flags.json
+network_listen_address: 0.0.0.0
+network_broadcast_address: 0.0.0.0
+network_admin_http_address: 0.0.0.0
+network_coordinator_http_address: 0.0.0.0

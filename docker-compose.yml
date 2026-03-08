@@ -1,0 +1,20 @@
+# Build: ./mktarball.sh && docker compose build
+# Run:   docker compose up -d
+# Init is done automatically on first start. API on 8443, admin on 8444.
+services:
+  faunadb:
+    build: .
+    ports:
+      - "8443:8443"   # coordinator / API
+      - "8444:8444"   # admin HTTP
+    volumes:
+      - faunadb-data:/opt/fauna/data
+      - faunadb-log:/opt/fauna/log
+    environment:
+      - MAX_HEAP_SIZE=2G
+      - MAX_DIRECT_SIZE=2G
+    restart: unless-stopped
+
+volumes:
+  faunadb-data:
+  faunadb-log:
