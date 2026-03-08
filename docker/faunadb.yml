@@ -1,10 +1,11 @@
-# Container config: bind to 0.0.0.0 so host can reach API and admin (OPERATING.md).
+# Container config. Cassandra disallows 0.0.0.0 for listen_address; use 127.0.0.1 for
+# storage/gossip. Bind API and admin to 0.0.0.0 so the host can reach them (OPERATING.md).
 auth_root_key: "secret"
 cluster_name: local_cluster
 storage_data_path: /opt/fauna/data
 log_path: /opt/fauna/log
 flags_path: /opt/fauna/flags/feature-flags.json
-network_listen_address: 0.0.0.0
-network_broadcast_address: 0.0.0.0
+network_listen_address: 127.0.0.1
+network_broadcast_address: 127.0.0.1
 network_admin_http_address: 0.0.0.0
 network_coordinator_http_address: 0.0.0.0

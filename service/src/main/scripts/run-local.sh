@@ -12,7 +12,7 @@ fi
 
 # Required dirs (OPERATING.md: storage_data_path, log_path, flags_path)
 mkdir -p data log flags
-[ -f flags/feature-flags.json ] || echo '{}' > flags/feature-flags.json
+[ -f flags/feature-flags.json ] || echo '{"version": 0, "properties": []}' > flags/feature-flags.json
 
 # Start server in background
 echo "Starting Fauna server..."

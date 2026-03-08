@@ -4,7 +4,8 @@ set -euo pipefail
 
 cd /opt/fauna
 mkdir -p data log flags
-[ -f flags/feature-flags.json ] || echo '{}' > flags/feature-flags.json
+# Feature flags file must have "version" and "properties" (see ext/flags FileService)
+[ -f flags/feature-flags.json ] || echo '{"version": 0, "properties": []}' > flags/feature-flags.json
 
 # Already initialized (marker in data dir so it persists with the volume)
 if [ -f data/.initialized ]; then
@@ -35,6 +36,8 @@ trap - INT TERM
 touch data/.initialized
 kill $PID 2>/dev/null || true
 wait $PID 2>/dev/null || true
+# Let the OS release ports before starting the server again
+sleep 3
 
 echo "Cluster initialized. Starting Fauna..."
 exec ./bin/faunadb -c faunadb.yml
