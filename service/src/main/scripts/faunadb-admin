@@ -55,4 +55,8 @@ if [ -n "$FAUNADB_CONFIG" ]; then
     admin_opts+=("$FAUNADB_CONFIG")
 fi
 
-exec java -cp "$FAUNADB_JAR" fauna.tools.Admin "${admin_opts[@]}" "$@"
+# Load jamm as agent when available to avoid Unsafe-based heap size warnings (JEP-8249196)
+JAVA_AGENT_OPTS=()
+[ -f "$LIB_DIR/jamm.jar" ] && JAVA_AGENT_OPTS=(-javaagent:"$LIB_DIR/jamm.jar")
+
+exec java "${JAVA_AGENT_OPTS[@]}" -cp "$FAUNADB_JAR" fauna.tools.Admin "${admin_opts[@]}" "$@"

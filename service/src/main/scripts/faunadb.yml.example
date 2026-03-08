@@ -1,0 +1,11 @@
+# Local single-node example (see OPERATING.md).
+# Copy to faunadb.yml and adjust as needed.
+auth_root_key: "secret"
+cluster_name: local_cluster
+storage_data_path: data
+log_path: log
+flags_path: flags/feature-flags.json
+network_listen_address: 127.0.0.1
+network_broadcast_address: 127.0.0.1
+network_admin_http_address: 127.0.0.1
+network_coordinator_http_address: 127.0.0.1

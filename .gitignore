@@ -30,3 +30,4 @@ tarball/data/
 tarball/log/
 .DS_Store
 /tarball/*
+/artifacts/*

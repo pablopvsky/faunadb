@@ -92,6 +92,13 @@ if [ -z "${GC_OPTS-}" ]; then
     GC_OPTS="-XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:G1HeapRegionSize=$HEAP_REGION_SIZE"
 fi
 
+# Load jamm as agent when available to avoid Unsafe-based heap size warnings (JEP-8249196)
+if [ -z "${JAVA_OPTS-}" ] && [ -f "$LIB_DIR/jamm.jar" ]; then
+    JAVA_OPTS="-javaagent:$LIB_DIR/jamm.jar"
+elif [ -n "${JAVA_OPTS-}" ] && [ -f "$LIB_DIR/jamm.jar" ]; then
+    JAVA_OPTS="-javaagent:$LIB_DIR/jamm.jar $JAVA_OPTS"
+fi
+
 # TODO: Remove when we can
 # java.base/java.util* packages are all accessed by JAMM
 # java.base/java.io package is accessed by C*'s FBUtilities
@@ -116,9 +123,9 @@ exec $JAVA \
     --add-opens java.base/java.io=ALL-UNNAMED \
     --add-opens java.base/java.lang=ALL-UNNAMED \
     --add-opens java.base/java.math=ALL-UNNAMED \
-    --add-opens=java.base/java.net=ALL-UNNAMED, \
-    --add-opens=java.base/sun.net.www.protocol.http=ALL-UNNAMED, \
-    --add-opens=java.base/sun.net.www.protocol.https=ALL-UNNAMED, \
+    --add-opens=java.base/java.net=ALL-UNNAMED \
+    --add-opens=java.base/sun.net.www.protocol.http=ALL-UNNAMED \
+    --add-opens=java.base/sun.net.www.protocol.https=ALL-UNNAMED \
     --add-opens java.base/sun.nio.ch=ALL-UNNAMED \
     $JAVA_OPTS \
     -Xmx$MAX_HEAP_SIZE \
