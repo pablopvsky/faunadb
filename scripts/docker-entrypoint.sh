@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Docker entrypoint: generate config with AUTH_ROOT_KEY, run one-time init, then start FaunaDB (foreground).
-# Usage: set AUTH_ROOT_KEY (default: secret); optionally FAUNADB_CONFIG_PATH, data/log paths via env.
+# Docker entrypoint: create faunadb.yml (as in OPERATING.md — release tarball does not include it),
+# set auth_root_key from AUTH_ROOT_KEY, run one-time init, then start FaunaDB (foreground).
+# Usage: set AUTH_ROOT_KEY (default: secret); optionally FAUNA_DIR.
 
 set -euo pipefail
 
@@ -14,13 +15,13 @@ AUTH_ROOT_KEY="${AUTH_ROOT_KEY:-secret}"
 mkdir -p "$DATA_DIR" "$LOG_DIR"
 cd "$FAUNA_DIR"
 
-# Generate faunadb.yml so we can set auth_root_key from env (and bind to 0.0.0.0 in Docker)
+# OPERATING.md: "Configure the first node" — create faunadb.yml (not included in release tarball).
+# We generate it at startup so AUTH_ROOT_KEY can be set via env; network_* set to 0.0.0.0 for Docker.
 cat > "$CONFIG_PATH" << EOF
+auth_root_key: ${AUTH_ROOT_KEY}
+cluster_name: local_cluster
 storage_data_path: ${DATA_DIR}
 log_path: ${LOG_DIR}
-
-cluster_name: local_cluster
-auth_root_key: ${AUTH_ROOT_KEY}
 
 network_listen_address: 0.0.0.0
 network_broadcast_address: 0.0.0.0
@@ -36,6 +37,11 @@ if [ ! -f "$INIT_MARKER" ]; then
   echo "==> First run: initializing cluster replica_1..."
   ./bin/faunadb-admin init -r replica_1
   touch "$INIT_MARKER"
+fi
+
+# Load jamm as Java agent to avoid "jamm will use sun.misc.Unsafe..." warning (JEP-8249196)
+if [ -f "${FAUNA_DIR}/lib/jamm.jar" ]; then
+  export JAVA_OPTS="-javaagent:${FAUNA_DIR}/lib/jamm.jar ${JAVA_OPTS:-}"
 fi
 
 echo "==> Starting FaunaDB (auth_root_key from AUTH_ROOT_KEY)"

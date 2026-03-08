@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+# Root CLI for FaunaDB: scripts, Docker, and tarball.
+# Usage: ./fauna <command> [subcommand] [options...]
+
+set -euo pipefail
+
+REPO_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+SCRIPTS="$REPO_ROOT/scripts"
+TARBALL_DIR="$REPO_ROOT/tarball"
+
+usage() {
+  cat << 'EOF'
+Usage: ./fauna <command> [subcommand] [options...]
+
+Commands:
+
+  scripts
+    run         Run FaunaDB from local tarball (foreground). Build first: ./fauna tarball
+    start       Start FaunaDB in background (stop with: ./fauna scripts stop)
+    stop        Stop FaunaDB started by 'scripts start'
+    reset       Stop FaunaDB and clean state; use --wipe-data to remove data/log
+    setup-env   Install deps for building (macOS/Homebrew: Java 17, sbt)
+
+  docker
+    build       Build image: docker build -t faunadb .
+    run         Run container (ports 8443, 8444; -e AUTH_ROOT_KEY=...; optional -v)
+                 Options: --key KEY  --volume  --detach
+
+  tarball      Build JAR and stage tarball (./mktarball.sh). Needed for scripts run/start.
+
+  init         One-time: init cluster in tarball (cd tarball && ./bin/faunadb-admin init -r replica_1)
+
+Examples:
+  ./fauna tarball && ./fauna init && ./fauna scripts run
+  ./fauna docker build && ./fauna docker run --key my-secret
+  ./fauna scripts reset --wipe-data && ./fauna scripts start
+EOF
+}
+
+cmd_scripts() {
+  local sub="${1:-}"
+  shift 2>/dev/null || true
+  case "$sub" in
+    run)    exec "$SCRIPTS/run-local.sh" "$@" ;;
+    start)  exec "$SCRIPTS/start-local.sh" "$@" ;;
+    stop)   exec "$SCRIPTS/stop-local.sh" "$@" ;;
+    reset)  exec "$SCRIPTS/reset-local.sh" "$@" ;;
+    setup-env) exec "$SCRIPTS/setup-build-env.sh" "$@" ;;
+    "")     echo "scripts: missing subcommand (run|start|stop|reset|setup-env)" 1>&2; usage 1>&2; exit 1 ;;
+    *)      echo "scripts: unknown subcommand '$sub'" 1>&2; exit 1 ;;
+  esac
+}
+
+cmd_docker() {
+  local sub="${1:-}"
+  shift 2>/dev/null || true
+  case "$sub" in
+    build)
+      exec docker build -t faunadb "$REPO_ROOT"
+      ;;
+    run)
+      local key="secret" extra=()
+      while [[ "${1:-}" == --* ]]; do
+        case "$1" in
+          --key)    key="${2:-secret}"; shift 2 ;;
+          --volume) extra+=(-v faunadb-data:/opt/fauna/data); shift ;;
+          --detach) extra+=(-d); shift ;;
+          *)        echo "docker run: unknown option $1" 1>&2; exit 1 ;;
+        esac
+      done
+      exec docker run -p 8443:8443 -p 8444:8444 -e "AUTH_ROOT_KEY=$key" "${extra[@]}" faunadb
+      ;;
+    "")
+      echo "docker: missing subcommand (build|run)" 1>&2; usage 1>&2; exit 1
+      ;;
+    *)
+      echo "docker: unknown subcommand '$sub'" 1>&2; exit 1
+      ;;
+  esac
+}
+
+cmd_tarball() {
+  exec "$REPO_ROOT/mktarball.sh" "$@"
+}
+
+cmd_init() {
+  if [ ! -f "$TARBALL_DIR/bin/faunadb-admin" ]; then
+    echo "Tarball not found. Run: ./fauna tarball" 1>&2
+    exit 1
+  fi
+  (cd "$TARBALL_DIR" && ./bin/faunadb-admin init -r replica_1)
+}
+
+main() {
+  local cmd="${1:-}"
+  case "$cmd" in
+    -h|--help|help|"") usage; exit 0 ;;
+    scripts)  cmd_scripts "${2:-}" "${@:3}" ;;
+    docker)   cmd_docker "${2:-}" "${@:3}" ;;
+    tarball)  cmd_tarball "${@:2}" ;;
+    init)     cmd_init "${@:2}" ;;
+    *)        echo "Unknown command: $cmd" 1>&2; usage 1>&2; exit 1 ;;
+  esac
+}
+
+main "$@"
