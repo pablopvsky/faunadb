@@ -26,3 +26,7 @@ tags
 .metals
 .vscode
 metals.sbt
+tarball/data/
+tarball/log/
+.DS_Store
+/tarball/*

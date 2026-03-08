@@ -1,0 +1,35 @@
+# Build artifacts and caches
+target/
+project/boot/
+project/target/
+**/target/
+.bsp
+.bloop
+.metals
+*.log
+*.log.*
+
+# Git and IDE
+.git
+.gitignore
+.idea
+.vscode
+*.iml
+
+# Tarball runtime data (we build tarball inside Docker)
+tarball/data
+tarball/log
+tarball/*.pid
+tarball/*.log
+tarball/*.err
+tarball/*.tar.gz
+
+# Misc
+.DS_Store
+*.md
+qa/
+jmh/
+scripts/reset-local.sh
+scripts/stop-local.sh
+scripts/start-local-launchd.sh
+scripts/stop-local-launchd.sh
