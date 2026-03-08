@@ -1,5 +1,28 @@
 # Docker
 
+**Run pre-built image (Docker Hub):**
+
+The image is published as `pablopvsky/faunadb:latest`. Run with named container, restart policy, and persistent volumes:
+
+```bash
+docker run -d \
+  --name faunadb \
+  --restart unless-stopped \
+  -p 8443:8443 \
+  -p 8444:8444 \
+  -v faunadb-data:/opt/fauna/data \
+  -v faunadb-log:/opt/fauna/log \
+  pablopvsky/faunadb:latest
+```
+
+- **8443** – coordinator / API  
+- **8444** – admin HTTP  
+- **faunadb-data** / **faunadb-log** – named volumes for data and logs (persist across restarts).
+
+---
+
+**Build and run from source**
+
 Build the tarball first, then build and run the image.
 
 **Build and run (Compose):**
