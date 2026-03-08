@@ -66,10 +66,13 @@ docker run -p 8443:8443 -p 8444:8444 -e AUTH_ROOT_KEY=your-secret \
 
 ## Environment variables
 
-| Variable        | Default    | Description                                      |
-|----------------|------------|--------------------------------------------------|
-| `AUTH_ROOT_KEY`| `secret`   | Root key used in `faunadb.yml` (auth_root_key).  |
-| `FAUNA_DIR`    | `/opt/fauna` | Install directory; data and log paths are under it. |
+| Variable          | Default     | Description                                      |
+|-------------------|-------------|--------------------------------------------------|
+| `AUTH_ROOT_KEY`   | `secret`    | Root key used in `faunadb.yml` (auth_root_key).  |
+| `FAUNA_DIR`       | `/opt/fauna`| Install directory; data and log paths are under it. |
+| `MAX_HEAP_SIZE`   | `512m`      | JVM max heap (container-friendly default; script would use half of host RAM otherwise and can OOM). |
+| `MAX_DIRECT_SIZE` | `256m`      | JVM max direct memory. Override with `-e MAX_HEAP_SIZE=1G` etc. if you give the container more memory. |
+| `FAUNADB_KEEP_ALIVE_ON_EXIT` | `0` | Set to `1` so that when the server exits, the container stays running so you can inspect logs and data: `docker exec -it <container> sh`. Logs: `/opt/fauna/log`, data: `/opt/fauna/data`, config: `/opt/fauna/faunadb.yml`. |
 
 Config is generated at container startup; changing `AUTH_ROOT_KEY` or `FAUNA_DIR` takes effect on the next run.
 
@@ -94,6 +97,57 @@ As in [OPERATING.md](OPERATING.md), the release tarball does **not** include `fa
 - **`Dockerfile`** — Multi-stage build and runtime image definition.
 - **`scripts/docker-entrypoint.sh`** — Startup script (config generation, init, run).
 - **`.dockerignore`** — Reduces build context (targets, git, logs, etc.).
+
+## Inspecting logs and data when the server exits
+
+You cannot `docker exec` into a **stopped** container. Use one of these approaches.
+
+**Option A — Keep container running after exit (then exec in):**  
+Run with `FAUNADB_KEEP_ALIVE_ON_EXIT=1` and a fixed name. When the server exits, the container stays up so you can exec in:
+
+```bash
+docker run -p 8443:8443 -p 8444:8444 \
+  -e MAX_HEAP_SIZE=1G -e MAX_DIRECT_SIZE=512m \
+  -e FAUNADB_KEEP_ALIVE_ON_EXIT=1 \
+  --name faunadb-inspect \
+  faunadb
+# After the server exits, in another terminal:
+docker exec -it faunadb-inspect sh
+# Inside: cat /opt/fauna/log/core.log  ls /opt/fauna/data  cat /opt/fauna/faunadb.yml
+docker stop faunadb-inspect
+```
+
+**Option B — Container already stopped:**  
+Copy logs and data out using the container ID (from `docker ps -a`):
+
+```bash
+# List containers (including stopped); note the CONTAINER ID
+docker ps -a
+
+# Copy logs and data to the current directory (replace <container_id> with the ID)
+docker cp <container_id>:/opt/fauna/log ./fauna-log
+docker cp <container_id>:/opt/fauna/data ./fauna-data
+docker cp <container_id>:/opt/fauna/faunadb.yml ./faunadb.yml
+
+# Inspect on the host
+cat fauna-log/core.log
+ls -la fauna-data
+```
+
+**Option C — Use a volume so data survives:**  
+Run with a named volume; then even if the container is removed, the volume keeps the data and you can mount it in a new container to inspect:
+
+```bash
+docker run -p 8443:8443 -p 8444:8444 \
+  -e MAX_HEAP_SIZE=1G -e FAUNADB_KEEP_ALIVE_ON_EXIT=1 \
+  -v faunadb-data:/opt/fauna/data \
+  -v faunadb-log:/opt/fauna/log \
+  --name faunadb-inspect \
+  faunadb
+# After exit, inspect by mounting the same volumes:
+docker run --rm -it -v faunadb-log:/log -v faunadb-data:/data alpine sh
+# Inside: cat /log/core.log  ls /data
+```
 
 ## Notes
 

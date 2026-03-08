@@ -33,7 +33,7 @@ echo "==> Ensuring data and log directories exist..."
 mkdir -p "$TARBALL_DIR/data" "$TARBALL_DIR/log"
 
 echo "==> Starting FaunaDB from $TARBALL_DIR"
-echo "    Config: faunadb-local.yml"
+echo "    Config: faunadb.yml"
 echo "    Stop with Ctrl+C. One-time: cd tarball && ./bin/faunadb-admin init -r replica_1"
 echo "    Health (after init): curl http://127.0.0.1:8443/ping  |  Admin: curl http://127.0.0.1:8444/ping"
 echo ""

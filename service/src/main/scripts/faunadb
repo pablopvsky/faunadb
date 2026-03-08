@@ -120,7 +120,7 @@ exec $JAVA \
     --add-opens=java.base/sun.net.www.protocol.http=ALL-UNNAMED, \
     --add-opens=java.base/sun.net.www.protocol.https=ALL-UNNAMED, \
     --add-opens java.base/sun.nio.ch=ALL-UNNAMED \
-    ${JAVA_OPTS:-} \
+    $JAVA_OPTS \
     -Xmx$MAX_HEAP_SIZE \
     -Xms$MAX_HEAP_SIZE \
     -Xss$STACK_SIZE \

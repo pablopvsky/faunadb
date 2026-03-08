@@ -32,17 +32,31 @@ flags_path: ${FAUNA_DIR}/feature-flags.json
 EOF
 touch "${FAUNA_DIR}/feature-flags.json" 2>/dev/null || true
 
-# One-time init (idempotent)
+# Container-friendly JVM memory (script defaults use half of /proc/meminfo, which can OOM-kill in Docker)
+export MAX_HEAP_SIZE="${MAX_HEAP_SIZE:-512m}"
+export MAX_DIRECT_SIZE="${MAX_DIRECT_SIZE:-256m}"
+
+# Load jamm as Java agent before any Java process (init and server) to avoid "jamm will use sun.misc.Unsafe..." warning
+if [ -f "${FAUNA_DIR}/lib/jamm.jar" ]; then
+  export JAVA_OPTS="-javaagent:${FAUNA_DIR}/lib/jamm.jar ${JAVA_OPTS:-}"
+fi
+
+# One-time init (idempotent); faunadb-admin also benefits from JAVA_OPTS above
 if [ ! -f "$INIT_MARKER" ]; then
   echo "==> First run: initializing cluster replica_1..."
   ./bin/faunadb-admin init -r replica_1
   touch "$INIT_MARKER"
 fi
 
-# Load jamm as Java agent to avoid "jamm will use sun.misc.Unsafe..." warning (JEP-8249196)
-if [ -f "${FAUNA_DIR}/lib/jamm.jar" ]; then
-  export JAVA_OPTS="-javaagent:${FAUNA_DIR}/lib/jamm.jar ${JAVA_OPTS:-}"
-fi
-
 echo "==> Starting FaunaDB (auth_root_key from AUTH_ROOT_KEY)"
-exec ./bin/faunadb -c "$CONFIG_PATH"
+# Run (no exec) so we can keep container alive for inspection when server exits
+env JAVA_OPTS="${JAVA_OPTS:-}" ./bin/faunadb -c "$CONFIG_PATH"
+EXIT_CODE=$?
+if [ "${FAUNADB_KEEP_ALIVE_ON_EXIT:-0}" = "1" ]; then
+  echo "==> FaunaDB exited with code $EXIT_CODE; container kept alive for inspection."
+  echo "    Inspect: docker exec -it <container> sh"
+  echo "    Logs: $LOG_DIR  Data: $DATA_DIR  Config: $CONFIG_PATH"
+  echo "    Stop: docker stop <container>"
+  exec sleep infinity
+fi
+exit "$EXIT_CODE"

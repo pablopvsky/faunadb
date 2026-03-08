@@ -42,7 +42,7 @@ mkdir -p "$TARBALL_DIR/data" "$TARBALL_DIR/log"
 
 echo "==> Starting FaunaDB in the background..."
 cd "$TARBALL_DIR"
-nohup ./bin/faunadb -c faunadb-local.yml >> "$TARBALL_DIR/faunadb.log" 2>> "$TARBALL_DIR/faunadb.err" &
+nohup ./bin/faunadb >> "$TARBALL_DIR/faunadb.log" 2>> "$TARBALL_DIR/faunadb.err" &
 echo $! > "$PID_FILE"
 
 echo "==> FaunaDB started (PID $(cat "$PID_FILE"))."
