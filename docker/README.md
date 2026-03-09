@@ -10,10 +10,13 @@ docker run -d \
   --restart unless-stopped \
   -p 8443:8443 \
   -p 8444:8444 \
+  -e FAUNADB_AUTH_ROOT_KEY=your-custom-root-key \
   -v faunadb-data:/opt/fauna/data \
   -v faunadb-log:/opt/fauna/log \
   pablopvsky/faunadb:latest
 ```
+
+- **FAUNADB_AUTH_ROOT_KEY** – (optional) Custom root key for admin/API auth. If unset, the image default is `"secret"`.
 
 - **8443** – coordinator / API  
 - **8444** – admin HTTP  
@@ -38,7 +41,7 @@ docker compose up -d
 ```bash
 ./mktarball.sh
 docker build -t faunadb .
-docker run -d -p 8443:8443 -p 8444:8444 --name faunadb faunadb
+docker run -d -p 8443:8443 -p 8444:8444 -e FAUNADB_AUTH_ROOT_KEY=your-custom-root-key --name faunadb faunadb
 ```
 
 - **8443** – coordinator / API

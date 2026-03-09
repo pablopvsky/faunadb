@@ -13,6 +13,7 @@ services:
     environment:
       - MAX_HEAP_SIZE=2G
       - MAX_DIRECT_SIZE=2G
+      # - FAUNADB_AUTH_ROOT_KEY=your-custom-root-key   # optional; default is "secret"
     restart: unless-stopped
 
 volumes:

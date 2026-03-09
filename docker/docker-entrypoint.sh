@@ -7,6 +7,12 @@ mkdir -p data log flags
 # Feature flags file must have "version" and "properties" (see ext/flags FileService)
 [ -f flags/feature-flags.json ] || echo '{"version": 0, "properties": []}' > flags/feature-flags.json
 
+# Override auth_root_key from environment if set (escape for sed: \ and &)
+if [ -n "${FAUNADB_AUTH_ROOT_KEY:-}" ]; then
+  SAFE_KEY=$(printf '%s' "$FAUNADB_AUTH_ROOT_KEY" | sed 's/[\\&]/\\&/g')
+  sed -i "s|^auth_root_key:.*|auth_root_key: \"${SAFE_KEY}\"|" faunadb.yml
+fi
+
 # Already initialized (marker in data dir so it persists with the volume)
 if [ -f data/.initialized ]; then
   exec ./bin/faunadb -c faunadb.yml
